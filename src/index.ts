@@ -69,6 +69,10 @@ app.use((req: Request, res: Response, next) => {
     next()
 });
 
+app.get('/', (req: Request, res: Response) => {
+    res.send('Hello World!')
+});
+
 /**
  * this route verifies code that the user has given us.
  * if the code is valid, we will return the user's data
@@ -172,8 +176,7 @@ app.post('/api/v1/player/register', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));
     }
 
-    if (isEmailExists(email))
-    {
+    if (isEmailExists(email)) {
         let responseJson =
         {
             status: 'invalid',
@@ -284,7 +287,7 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
     }
 
     try {
-      
+
         const fullEmail = await getPlayerEmailWithCode(token) as string;
         if (!fullEmail) {
             const responseJson = {
@@ -293,7 +296,7 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
             };
             return res.end(JSON.stringify(responseJson));
         }
-    
+
         const email = fullEmail.split('@')[0];
         const signaturePath = path.join('signatures', `${email}.png`);
 
@@ -305,7 +308,7 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
         };
         return res.end(JSON.stringify(responseJson));
     } catch (error) {
-    
+
         const responseJson = {
             status: 'no_sign',
             message: 'Player has no signature.',
@@ -318,22 +321,20 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
 
     // check if user has our session token
-	var token = req.cookies['JPCS_SESSION_TOKEN'];
-    if (!token)
-	{
-        let responseJson = 
+    var token = req.cookies['JPCS_SESSION_TOKEN'];
+    if (!token) {
+        let responseJson =
         {
             status: 'invalid',
             message: 'Player signature invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));   
+        return res.end(JSON.stringify(responseJson));
     }
 
     const signatureBase64 = req.body.signatureBase64;
-    if (!signatureBase64)
-    {
-        let responseJson = 
+    if (!signatureBase64) {
+        let responseJson =
         {
             status: 'invalid',
             message: 'Player signature invalid.',
@@ -343,9 +344,8 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
     }
 
     const email = getPlayerEmailWithCode(token) as string;
-    if (!email)
-    {
-        let responseJson = 
+    if (!email) {
+        let responseJson =
         {
             status: 'invalid',
             message: 'Player non-existent.',
@@ -356,9 +356,8 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
 
     const signatureFileName = `${email.split('@')[0]}.png`;
 
-    if (fs.existsSync(path.join('signatures', signatureFileName)))
-    {
-        let responseJson = 
+    if (fs.existsSync(path.join('signatures', signatureFileName))) {
+        let responseJson =
         {
             status: 'invalid',
             message: 'Player signature already exists.',
@@ -368,9 +367,8 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
     }
 
 
-    if (!saveBase64Image(signatureBase64, path.join('signatures', signatureFileName)))
-    {
-        let responseJson = 
+    if (!saveBase64Image(signatureBase64, path.join('signatures', signatureFileName))) {
+        let responseJson =
         {
             status: 'invalid',
             message: 'Server error. Failed to encode signature.',
@@ -379,7 +377,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));
     }
 
-    let responseJson = 
+    let responseJson =
     {
         status: 'verified',
         message: 'Player signature verified.',
@@ -518,7 +516,7 @@ const updatePlayerScore = (token: string) => {
 }
 
 export const isCodeValid = (code: string) => {
-     // let data = getUserData(code, null);
+    // let data = getUserData(code, null);
     // if (!data) return null;
 
     // code length should be 6 + 1 (check character)
@@ -559,7 +557,7 @@ export const getPlayerWithCode = (code: string) => {
 }
 
 export const getPlayerEmailWithCode = (code: string) => {
-    
+
     if (!isCodeValid(code)) return null;
 
     let stmt = db.prepare("SELECT email FROM STUDENTS WHERE code = ?");
@@ -569,7 +567,7 @@ export const getPlayerEmailWithCode = (code: string) => {
 }
 
 const saveBase64Image = (base64Data: string, filePath: string): boolean => {
-  
+
     const base64Pattern = /^data:image\/png;base64,/;
     const base64Image = base64Data.replace(base64Pattern, '');
 
@@ -584,7 +582,7 @@ const saveBase64Image = (base64Data: string, filePath: string): boolean => {
                 console.log('Image saved successfully to', filePath);
             }
 
-            
+
         });
 
         return true;
