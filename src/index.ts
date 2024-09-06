@@ -355,6 +355,19 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
     }
 
     const signatureFileName = `${email.split('@')[0]}.png`;
+
+    if (fs.existsSync(path.join('signatures', signatureFileName)))
+    {
+        let responseJson = 
+        {
+            status: 'invalid',
+            message: 'Player signature already exists.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+
     if (!saveBase64Image(signatureBase64, path.join('signatures', signatureFileName)))
     {
         let responseJson = 
