@@ -17,7 +17,25 @@
     Date: 9/6/2024 12:00 AM
  */
 
+interface PlayerData {
+    id: number;
+    username: string;
+    name: string;
+    email: string;
+    student_id: string;
+    top_score: number;
+    is_facilitator: boolean;
+    has_signed: boolean;
+    course: string;
+    section: string;
+    code: string;
+}
+
+import * as fs from 'fs';
+import * as path from 'path';
+
 import express, { type Request, type Response } from 'express'
+import cors from 'cors';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 
@@ -26,6 +44,14 @@ import { Database } from "bun:sqlite";
 const app = express()
 
 export const handler = app
+
+const corsOptions = {
+    origin: 'http://localhost:5173', // allowed origin, this is our client
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], // allowed methods
+    credentials: true, // allow credentials (cookies, etc.)
+};
+
+app.use(cors(corsOptions));
 
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -41,10 +67,6 @@ app.use((req: Request, res: Response, next) => {
     }
 
     next()
-});
-
-app.get('/', (req: Request, res: Response) => {
-    res.send('Hello World!')
 });
 
 /**
@@ -72,8 +94,8 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));
     }
 
-    let codeValid = true;
-    if (!codeValid) {
+    let playerData = getPlayerWithCode(code) as PlayerData;
+    if (!playerData) {
         let responseJson =
         {
             status: 'invalid',
@@ -83,22 +105,16 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));
     }
 
-    let token = 'TEST_TOKEN';
-
     let responseJson =
     {
         status: 'verified',
         message: 'Code is valid.',
-        user_data: {
-            username: 'CuteLasallian',
-            name: 'John Doe',
-            email: 'john_doe@dlsl.edu.ph',
-            student_id: '2023364882',
-            top_score: 100
-        }
+        user_data: playerData
     };
 
-    res.cookie('JPCS_SESSION_TOKEN', token, { httpOnly: true, sameSite: 'strict' });
+    console.log('Code: ' + playerData.code);
+
+    res.cookie('JPCS_SESSION_TOKEN', playerData.code, { httpOnly: true });
 
     return res.end(JSON.stringify(responseJson));
 });
@@ -110,7 +126,101 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
  * the user's data will be saved to the database.
  */
 app.post('/api/v1/player/register', (req: Request, res: Response) => {
-    console.log('registering user');
+
+    // to make sure only us can register a user, this should be in a .env file shared with the tap-id client
+    let authToken = req.body.authentication;
+    if (!authToken) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid request.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    let studentId = req.body.student_id;
+    if (!studentId) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Student ID is required.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    let fullName = req.body.full_name;
+    if (!fullName) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Full name is required.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    let email = req.body.email;
+    if (!email) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Email is required.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    if (isEmailExists(email))
+    {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Email already exists.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    let course = req.body.course;
+    if (!course) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Course is required.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    let section = req.body.section;
+    if (!section) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Section is required.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    let code: string;
+    do {
+        code = generateCode();
+    } while (isCodeExists(code));
+
+    // insert to db
+    insertPlayerData(code, studentId, 'No_Username', fullName, email, course, section);
+
+    let responseJson =
+    {
+        status: 'verified',
+        message: 'User registered.',
+        code: code
+    };
+
+    return res.end(JSON.stringify(responseJson));
 });
 
 /**
@@ -136,58 +246,127 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));
     }
 
-    // if token is valid, return user data
+    let playerData = getPlayerWithCode(token) as PlayerData;
+    if (!playerData) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Token is invalid.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
     let responseJson =
     {
         status: 'verified',
         message: 'Token is valid.',
-        user_data: {
-            username: 'CuteLasallian',
-            name: 'John Doe',
-            email: 'john_doe@dlsl.edu.ph',
-            student_id: '2023364882',
-            top_score: 100
-        }
+        user_data: playerData
     };
 
     return res.end(JSON.stringify(responseJson));
 });
 
-
-
 app.listen(process.env.PORT || 3000, () => {
     console.log('Server is running on port ' + (process.env.PORT || 3000));
 });
 
+app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
 
+    const token = req.cookies['JPCS_SESSION_TOKEN'];
+    if (!token) {
+        const responseJson = {
+            status: 'no_sign',
+            message: 'Player has no signature.',
+        };
+        return res.end(JSON.stringify(responseJson));
+    }
 
+    try {
+      
+        const fullEmail = await getPlayerEmailWithCode(token) as string;
+        if (!fullEmail) {
+            const responseJson = {
+                status: 'no_sign',
+                message: 'Player has no signature.',
+            };
+            return res.end(JSON.stringify(responseJson));
+        }
+    
+        const email = fullEmail.split('@')[0];
+        const signaturePath = path.join('signatures', `${email}.png`);
 
+        await fs.promises.access(signaturePath, fs.constants.F_OK);
 
+        const responseJson = {
+            status: 'signed',
+            message: 'Player has signed.',
+        };
+        return res.end(JSON.stringify(responseJson));
+    } catch (error) {
+    
+        const responseJson = {
+            status: 'no_sign',
+            message: 'Player has no signature.',
+        };
+        return res.end(JSON.stringify(responseJson));
+    }
+});
 
+app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
 
+    // check if user has our session token
+	var token = req.cookies['JPCS_SESSION_TOKEN'];
+    if (!token)
+	{
+        let responseJson = 
+        {
+            status: 'invalid',
+            message: 'Player signature invalid.',
+        };
 
+        return res.end(JSON.stringify(responseJson));   
+    }
 
+    /*let responseJson = 
+    {
+        status: 'invalid',
+        message: 'Player signature invalid.',
+    };
+    
+    return res.end(JSON.stringify(responseJson));  */ 
 
+    let responseJson = 
+    {
+        status: 'verified',
+        message: 'Player signature verified.',
+    };
 
-
-
-
-
-
-
-
+    return res.end(JSON.stringify(responseJson));
+});
 
 // bun's built-in sqlite database
 const db = new Database("database.sqlite");
 
-// create STUDENTS table if it doesn't exist
+// create STUDENTS table and insert column if nonexist 
 db.exec(`
-    CREATE TABLE IF NOT EXISTS STUDENTS (
-        student_id INTEGER PRIMARY KEY,
-        email TEXT,
-        top_score INTEGER
-    )
+        CREATE TABLE IF NOT EXISTS STUDENTS (  
+        player_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER UNIQUE, 
+        code TEXT UNIQUE NOT NULL,
+        username TEXT DEFAULT 'No_Username',
+        full_name TEXT DEFAULT 'No_Full_Name',
+        email TEXT UNIQUE NOT NULL,
+        course TEXT DEFAULT 'No_Course',
+        section TEXT DEFAULT 'No_Section',
+        is_facilitator BOOLEAN DEFAULT FALSE,
+        top_score INTEGER DEFAULT 0
+    );
 `);
+
+
 
 
 
@@ -201,6 +380,17 @@ db.exec(`
  * though i think, some hosting providers allow free sql database for a week or so.
  * so sql it is?
  */
+
+export const isCodeExists = (code: string): boolean => {
+
+    interface CountResult {
+        count: number;
+    }
+
+    let stmt = db.prepare("SELECT COUNT(*) AS count FROM STUDENTS WHERE code = ?");
+    let result = stmt.get(code) as CountResult;
+    return result.count > 0;
+}
 
 // valid characters
 const CODE_POINTS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -263,14 +453,31 @@ const getPlayerDataFromDB = (code: string, token: string) => {
     // kinemerut
 }
 
+const isEmailExists = (email: string) => {
+
+    interface CountResult {
+        count: number;
+    }
+
+    let stmt = db.prepare("SELECT COUNT(*) AS count FROM STUDENTS WHERE email = ?");
+    let result = stmt.get(email) as CountResult;
+    return result.count > 0;
+}
+
+const insertPlayerData = (code: string, student_id: number, username: string, fullName: string, email: string, course: string, section: string) => {
+    // insert player and handle errors here
+
+    let stmt = db.prepare("INSERT INTO STUDENTS (code, student_id, username, full_name, email, course, section) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    stmt.run(code, student_id, username, fullName, email, course, section);
+}
+
 // tyron, you decide. should we use token as main key or student id?
 // which is more secure in this case?
 const updatePlayerScore = (token: string) => {
 }
 
-// check if code is valid, returns true if valid, false if not.
-export const checkCode = (code: string) => {
-    // let data = getUserData(code, null);
+export const isCodeValid = (code: string) => {
+     // let data = getUserData(code, null);
     // if (!data) return null;
 
     // code length should be 6 + 1 (check character)
@@ -299,13 +506,23 @@ export const checkCode = (code: string) => {
     return remainder == 0;
 }
 
-// check if token is valid, then return user data as an object.
-const checkToken = (token: string) => {
-    // tyron can do this too :DD
+// check if code is valid, returns true if valid, false if not.
+export const getPlayerWithCode = (code: string) => {
 
-    // let data = getUserData(null, token);
-    // if (!data) return null;
+    if (!isCodeValid(code)) return null;
 
-    if (token.length < 0) return null;
+    let stmt = db.prepare("SELECT * FROM STUDENTS WHERE code = ?");
+    let result = stmt.get(code);
+
+    return result as PlayerData;
 }
 
+export const getPlayerEmailWithCode = (code: string) => {
+    
+    if (!isCodeValid(code)) return null;
+
+    let stmt = db.prepare("SELECT email FROM STUDENTS WHERE code = ?");
+    let result = stmt.get(code) as { email: string };
+
+    return result.email;
+}
