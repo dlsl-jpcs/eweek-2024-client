@@ -28,7 +28,6 @@ interface PlayerData {
     student_id: string;
     top_score: number;
     is_facilitator: boolean;
-    has_signed: boolean;
     course: string;
     section: string;
     code: string;
