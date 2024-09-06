@@ -330,13 +330,41 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));   
     }
 
-    /*let responseJson = 
+    const signatureBase64 = req.body.signatureBase64;
+    if (!signatureBase64)
     {
-        status: 'invalid',
-        message: 'Player signature invalid.',
-    };
-    
-    return res.end(JSON.stringify(responseJson));  */ 
+        let responseJson = 
+        {
+            status: 'invalid',
+            message: 'Player signature invalid.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    const email = getPlayerEmailWithCode(token) as string;
+    if (!email)
+    {
+        let responseJson = 
+        {
+            status: 'invalid',
+            message: 'Player non-existent.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
+
+    const signatureFileName = `${email.split('@')[0]}.png`;
+    if (!saveBase64Image(signatureBase64, path.join('signatures', signatureFileName)))
+    {
+        let responseJson = 
+        {
+            status: 'invalid',
+            message: 'Server error. Failed to encode signature.',
+        };
+
+        return res.end(JSON.stringify(responseJson));
+    }
 
     let responseJson = 
     {
@@ -526,3 +554,30 @@ export const getPlayerEmailWithCode = (code: string) => {
 
     return result.email;
 }
+
+const saveBase64Image = (base64Data: string, filePath: string): boolean => {
+  
+    const base64Pattern = /^data:image\/png;base64,/;
+    const base64Image = base64Data.replace(base64Pattern, '');
+
+    const buffer = Buffer.from(base64Image, 'base64');
+
+    try {
+        fs.writeFile(filePath, buffer, (err) => {
+            if (err) {
+                console.error('Error saving the image:', err);
+                return false;
+            } else {
+                console.log('Image saved successfully to', filePath);
+            }
+
+            
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Error saving the image:', error);
+    }
+
+    return false;
+};
