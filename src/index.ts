@@ -48,12 +48,14 @@ const app = express()
 export const handler = app
 
 const corsOptions = {
-    origin: 'http://localhost:5173', // allowed origin, this is our client
+    origin: ['http://localhost:5173', "https://eweek-2024-server.onrender.com"], // allowed origin, this is our client
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // allowed methods
     credentials: true, // allow credentials (cookies, etc.)
 };
 
 app.use(cors(corsOptions));
+
+
 
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -72,8 +74,11 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.get('/', (req: Request, res: Response) => {
-    res.send('Hello World!')
+
+    return res.sendFile(path.join(__dirname, 'public/server.html'));
 });
+
+
 
 /**
  * this route verifies code that the user has given us.
