@@ -389,6 +389,64 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
     return res.send(JSON.stringify(responseJson));
 });
 
+app.post('/api/v1/player/updateTopScore', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+
+    // check if user has our session token
+    var token = req.cookies['JPCS_SESSION_TOKEN'];
+    if (!token) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid request.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    const newScore = req.body.score;
+    if (!newScore) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid score.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    const email = getPlayerEmailWithCode(token) as string;
+    if (!email) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Player non-existent.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    if (!updatePlayerScore(token, newScore)) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Player score not updated.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    let responseJson =
+    {
+        status: 'verified',
+        message: 'Player score verified.',
+    };
+
+    return res.send(JSON.stringify(responseJson));
+});
+
+
+
 // bun's built-in sqlite database
 const db = new Database("database.sqlite");
 
@@ -521,9 +579,21 @@ const insertPlayerData = (code: string, student_id: number, username: string, fu
     stmt.run(code, student_id, username, fullName, email, course, section);
 }
 
-// tyron, you decide. should we use token as main key or student id?
-// which is more secure in this case?
-const updatePlayerScore = (token: string) => {
+const updatePlayerScore = (code: string, score: number): boolean => {
+    
+    let currentTopScore = getPlayerTopScoreWithCode(code) as number;
+
+    console.log(`Current Score: ${score}`);
+    console.log(`Top Score: ${currentTopScore}`)
+
+    if (score > currentTopScore) {
+
+        let updateStmt = db.prepare("UPDATE STUDENTS SET top_score = ? WHERE code = ?");
+        updateStmt.run(score, code);
+        return true;
+    }
+
+    return false;
 }
 
 export const isCodeValid = (code: string) => {
@@ -575,6 +645,16 @@ export const getPlayerEmailWithCode = (code: string) => {
     let result = stmt.get(code) as { email: string };
 
     return result.email;
+}
+
+export const getPlayerTopScoreWithCode = (code: string) => {
+
+    if (!isCodeValid(code)) return null;
+
+    let stmt = db.prepare("SELECT top_score FROM STUDENTS WHERE code = ?");
+    let result = stmt.get(code) as { top_score: number };
+
+    return result.top_score;
 }
 
 const saveBase64Image = (base64Data: string, filePath: string): boolean => {
