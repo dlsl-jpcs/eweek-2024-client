@@ -235,13 +235,15 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
 
     res.setHeader('Content-Type', 'application/json');
 
+    console.log(req.cookies);
+
     // check if user has our session token
     var token = req.cookies['JPCS_SESSION_TOKEN'];
     if (!token) {
         let responseJson =
         {
             status: 'invalid',
-            message: 'Token is invalid.',
+            message: 'No token provided.',
         };
 
         return res.send(JSON.stringify(responseJson));
@@ -252,7 +254,7 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
         let responseJson =
         {
             status: 'invalid',
-            message: 'Token is invalid.',
+            message: 'No player data found for token.',
         };
 
         return res.send(JSON.stringify(responseJson));
