@@ -42,6 +42,7 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 
 import { Database } from "bun:sqlite";
+import { getStudentInfo, parseNameFromDlslEmail } from './util';
 
 const app = express()
 
@@ -65,7 +66,7 @@ app.use((req: Request, res: Response, next) => {
 
     if (req.url.startsWith('/api/v1/')) {
         let apiDebInfo =
-            'API Request From \'' + req.headers['host'] + '\' -> ' + req.method + ' ' + req.originalUrl + '';
+            `API Request From \'${req.headers['host']}\' -> ${req.method} ${req.originalUrl}`;
 
         console.log(apiDebInfo);
     }
@@ -136,19 +137,21 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
  * 
  * the user's data will be saved to the database.
  */
-app.post('/api/v1/player/register', (req: Request, res: Response) => {
+app.post('/api/v1/player/register', async (req: Request, res: Response) => {
 
     // to make sure only us can register a user, this should be in a .env file shared with the tap-id client
-    let authToken = req.body.authentication;
-    if (!authToken) {
-        let responseJson =
-        {
-            status: 'invalid',
-            message: 'Invalid request.',
-        };
+    // TODO: Coffee
 
-        return res.end(JSON.stringify(responseJson));
-    }
+    // let authToken = req.body.authentication;
+    // if (!authToken) {
+    //     let responseJson =
+    //     {
+    //         status: 'invalid',
+    //         message: 'Invalid request.',
+    //     };
+
+    //     return res.end(JSON.stringify(responseJson));
+    // }
 
     let studentId = req.body.student_id;
     if (!studentId) {
@@ -161,59 +164,42 @@ app.post('/api/v1/player/register', (req: Request, res: Response) => {
         return res.end(JSON.stringify(responseJson));
     }
 
-    let fullName = req.body.full_name;
-    if (!fullName) {
+    if (getCodeForStudentId(studentId)) {
+        return res.end(JSON.stringify({
+            status: 'user_already_exists',
+            code: getCodeForStudentId(studentId),
+        }));
+    }
+
+    const info = await getStudentInfo(studentId).catch(() => null);
+    if (!info) {
         let responseJson =
         {
             status: 'invalid',
-            message: 'Full name is required.',
+            message: 'Student ID is invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
-    let email = req.body.email;
-    if (!email) {
-        let responseJson =
-        {
-            status: 'invalid',
-            message: 'Email is required.',
-        };
-
-        return res.end(JSON.stringify(responseJson));
-    }
+    let fullName = parseNameFromDlslEmail(info.email_address);
+    let email = info.email_address;
 
     if (isEmailExists(email)) {
+        console.log('User already exists', email);
         let responseJson =
         {
-            status: 'invalid',
-            message: 'Email already exists.',
+            status: 'user_already_exists',
+            code: getCodeForStudentId(studentId),
         };
 
         return res.end(JSON.stringify(responseJson));
     }
 
-    let course = req.body.course;
-    if (!course) {
-        let responseJson =
-        {
-            status: 'invalid',
-            message: 'Course is required.',
-        };
+    let course = info.department;
 
-        return res.end(JSON.stringify(responseJson));
-    }
-
-    let section = req.body.section;
-    if (!section) {
-        let responseJson =
-        {
-            status: 'invalid',
-            message: 'Section is required.',
-        };
-
-        return res.end(JSON.stringify(responseJson));
-    }
+    // not provided by tap-id
+    let section = "No_Section";
 
     let code: string;
     do {
@@ -417,6 +403,14 @@ db.exec(`
 
 
 
+export const getCodeForStudentId = (student_id: string) => {
+
+    let stmt = db.prepare("SELECT code FROM STUDENTS WHERE student_id = ?");
+    const result = stmt.get(student_id);
+    if (!result) return null;
+    const cast = result as { code: string };
+    return cast.code;
+}
 
 
 /** helper functions for those above */
