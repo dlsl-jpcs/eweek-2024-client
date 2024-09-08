@@ -41,10 +41,21 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 
-import { Database } from "bun:sqlite";
 import { getStudentInfo, parseNameFromDlslEmail } from './util';
 
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://fhxedvdhloxnnyvjtdfk.supabase.co'
+const supabaseKey = Bun.env.SUPABASE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+// sign in anonymously
+supabase.auth.signInAnonymously().then(() => {
+    console.log('Signed in anonymously');
+});
+
 const app = express()
+
 
 export const handler = app
 
@@ -91,7 +102,7 @@ app.get('/', (req: Request, res: Response) => {
  *
  * in short, this logins a player.
  */
-app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
+app.post('/api/v1/player/verifyCode', async (req: Request, res: Response) => {
 
     res.setHeader('Content-Type', 'application/json');
 
@@ -106,8 +117,8 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
         return res.send(JSON.stringify(responseJson));
     }
 
-    let playerData = getPlayerWithCode(code) as PlayerData;
-    if (!playerData) {
+    let playerDataResponse = await getPlayerWithCode(code);
+    if (!playerDataResponse) {
         let responseJson =
         {
             status: 'invalid',
@@ -116,6 +127,8 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
 
         return res.send(JSON.stringify(responseJson));
     }
+
+    const playerData = playerDataResponse as PlayerData;
 
     let responseJson =
     {
@@ -128,7 +141,6 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
 
     res.cookie('JPCS_SESSION_TOKEN', playerData.code, { httpOnly: true });
 
-    res.send(JSON.stringify(responseJson));
     return res.send(JSON.stringify(responseJson));
 });
 
@@ -154,6 +166,8 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     //     return res.send(JSON.stringify(responseJson));
     // }
 
+
+
     let studentId = req.body.student_id;
     if (!studentId) {
         let responseJson =
@@ -165,12 +179,15 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
         return res.send(JSON.stringify(responseJson));
     }
 
-    if (getCodeForStudentId(studentId)) {
+    const codeResult = await getCodeForStudentId(studentId);
+    if (codeResult) {
         return res.send(JSON.stringify({
             status: 'user_already_exists',
-            code: getCodeForStudentId(studentId),
+            code: await getCodeForStudentId(studentId),
         }));
     }
+
+
 
     const info = await getStudentInfo(studentId).catch(() => null);
     if (!info) {
@@ -186,7 +203,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     let fullName = parseNameFromDlslEmail(info.email_address);
     let email = info.email_address;
 
-    if (isEmailExists(email)) {
+    if (await isEmailExists(email)) {
         console.log('User already exists', email);
         let responseJson =
         {
@@ -205,13 +222,22 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     let code: string;
     do {
         code = generateCode();
-    } while (isCodeExists(code));
+    } while (await isCodeExists(code));
 
     // this is the first name btw
     let username = email.split('@')[0].split('_')[0].charAt(0).toUpperCase() + email.split('@')[0].split('_')[0].slice(1);
 
     // insert to db
-    insertPlayerData(code, studentId, username, fullName, email, course, section);
+    const response = await insertPlayerData(code, studentId, username, fullName, email, course, section);
+    if (response.error) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Failed to register user.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
 
     let responseJson =
     {
@@ -230,7 +256,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
  *
  * in short, this basically checks if player is logged in.
  */
-app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
+app.post('/api/v1/player/checkToken', async (req: Request, res: Response) => {
     console.log('Checking token...');
 
     res.setHeader('Content-Type', 'application/json');
@@ -249,8 +275,8 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
         return res.send(JSON.stringify(responseJson));
     }
 
-    let playerData = getPlayerWithCode(token) as PlayerData;
-    if (!playerData) {
+    let playerDataResponse = await getPlayerWithCode(token);
+    if (!playerDataResponse) {
         let responseJson =
         {
             status: 'invalid',
@@ -259,6 +285,8 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
 
         return res.send(JSON.stringify(responseJson));
     }
+
+    const playerData = playerDataResponse;
 
     let responseJson =
     {
@@ -270,9 +298,11 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
     return res.send(JSON.stringify(responseJson));
 });
 
-app.listen(process.env.PORT || 3000, () => {
+app.listen(process.env.PORT || 3000, async () => {
     console.log('Server is running on port ' + (process.env.PORT || 3000));
 });
+
+
 
 app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
@@ -298,9 +328,17 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
         }
 
         const email = fullEmail.split('@')[0];
-        const signaturePath = path.join('signatures', `${email}.png`);
 
-        await fs.promises.access(signaturePath, fs.constants.F_OK);
+        const signatureFileName = `${email}.png`;
+
+        const result = await supabase.storage.from('signatures').exists(signatureFileName);
+        if (result.error || !result.data) {
+            const responseJson = {
+                status: 'no_sign',
+                message: 'Player has no signature.',
+            };
+            return res.send(JSON.stringify(responseJson));
+        }
 
         const responseJson = {
             status: 'signed',
@@ -317,7 +355,7 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
     }
 });
 
-app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
+app.post('/api/v1/player/submitSignature', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
 
     // check if user has our session token
@@ -343,8 +381,8 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
         return res.send(JSON.stringify(responseJson));
     }
 
-    const email = getPlayerEmailWithCode(token) as string;
-    if (!email) {
+    const emailResponse = await getPlayerEmailWithCode(token);
+    if (!emailResponse) {
         let responseJson =
         {
             status: 'invalid',
@@ -354,7 +392,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
         return res.send(JSON.stringify(responseJson));
     }
 
-    const signatureFileName = `${email.split('@')[0]}.png`;
+    const signatureFileName = `${emailResponse.split('@')[0]}.png`;
 
     if (fs.existsSync(path.join('signatures', signatureFileName))) {
         let responseJson =
@@ -366,11 +404,8 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
         return res.send(JSON.stringify(responseJson));
     }
 
-    if (!fs.existsSync('signatures')) {
-        fs.mkdirSync('signatures');
-    }
 
-    if (!saveBase64Image(signatureBase64, path.join('signatures', signatureFileName))) {
+    if (! await saveBase64Image(signatureBase64, signatureFileName)) {
         let responseJson =
         {
             status: 'invalid',
@@ -389,34 +424,17 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
     return res.send(JSON.stringify(responseJson));
 });
 
-// bun's built-in sqlite database
-const db = new Database("database.sqlite");
 
-// create STUDENTS table and insert column if nonexist 
-db.exec(`
-        CREATE TABLE IF NOT EXISTS STUDENTS (  
-        player_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER UNIQUE, 
-        code TEXT UNIQUE NOT NULL,
-        username TEXT DEFAULT 'No_Username',
-        full_name TEXT DEFAULT 'No_Full_Name',
-        email TEXT UNIQUE NOT NULL,
-        course TEXT DEFAULT 'No_Course',
-        section TEXT DEFAULT 'No_Section',
-        is_facilitator BOOLEAN DEFAULT FALSE,
-        top_score INTEGER DEFAULT 0
-    );
-`);
+
+export const getCodeForStudentId = async (student_id: string) => {
+    const response = await supabase.from('Students').select('code').eq('student_id', student_id).single();
+    if (response.error) {
+        return null;
+    }
 
 
 
-export const getCodeForStudentId = (student_id: string) => {
-
-    let stmt = db.prepare("SELECT code FROM STUDENTS WHERE student_id = ?");
-    const result = stmt.get(student_id);
-    if (!result) return null;
-    const cast = result as { code: string };
-    return cast.code;
+    return response.data.code;
 }
 
 
@@ -431,15 +449,15 @@ export const getCodeForStudentId = (student_id: string) => {
  * so sql it is?
  */
 
-export const isCodeExists = (code: string): boolean => {
+export const isCodeExists = async (code: string) => {
+    const count = await supabase.from('Students').select('code').eq('code', code).single();
 
-    interface CountResult {
-        count: number;
+    console.log("Count: ", count);
+    if (count.data) {
+        return true;
     }
 
-    let stmt = db.prepare("SELECT COUNT(*) AS count FROM STUDENTS WHERE code = ?");
-    let result = stmt.get(code) as CountResult;
-    return result.count > 0;
+    return false;
 }
 
 // valid characters
@@ -503,22 +521,32 @@ const getPlayerDataFromDB = (code: string, token: string) => {
     // kinemerut
 }
 
-const isEmailExists = (email: string) => {
+const isEmailExists = async (email: string) => {
 
-    interface CountResult {
-        count: number;
+    const result = await supabase.from('Students').select('email').eq('email', email).single();
+
+    if (result.error) {
+        return false;
     }
 
-    let stmt = db.prepare("SELECT COUNT(*) AS count FROM STUDENTS WHERE email = ?");
-    let result = stmt.get(email) as CountResult;
-    return result.count > 0;
+    if (result.data) {
+        return true;
+    }
+
+    return true;
 }
 
-const insertPlayerData = (code: string, student_id: number, username: string, fullName: string, email: string, course: string, section: string) => {
+const insertPlayerData = async (code: string, student_id: number, username: string, fullName: string, email: string, course: string, section: string) => {
     // insert player and handle errors here
-
-    let stmt = db.prepare("INSERT INTO STUDENTS (code, student_id, username, full_name, email, course, section) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    stmt.run(code, student_id, username, fullName, email, course, section);
+    return supabase.from('Students').insert({
+        code: code,
+        student_id: student_id,
+        username: username,
+        full_name: fullName,
+        email: email,
+        course: course,
+        section: section,
+    });
 }
 
 // tyron, you decide. should we use token as main key or student id?
@@ -557,40 +585,37 @@ export const isCodeValid = (code: string) => {
 }
 
 // check if code is valid, returns true if valid, false if not.
-export const getPlayerWithCode = (code: string) => {
+export const getPlayerWithCode = async (code: string) => {
+    const response = await supabase.from('Students').select('*').eq('code', code).single();
+    if (response.error) {
+        return false;
+    }
+
+    return response.data as PlayerData;
+}
+
+export const getPlayerEmailWithCode = async (code: string) => {
 
     if (!isCodeValid(code)) return null;
 
-    let stmt = db.prepare("SELECT * FROM STUDENTS WHERE code = ?");
-    let result = stmt.get(code);
+    const result = await supabase.from('Students').select('email').eq('code', code).single();
+    if (result.error) return null;
 
-    return result as PlayerData;
+    return result.data.email;
 }
 
-export const getPlayerEmailWithCode = (code: string) => {
-
-    if (!isCodeValid(code)) return null;
-
-    let stmt = db.prepare("SELECT email FROM STUDENTS WHERE code = ?");
-    let result = stmt.get(code) as { email: string };
-
-    return result.email;
-}
-
-const saveBase64Image = (base64Data: string, filePath: string): boolean => {
+const saveBase64Image = async (base64Data: string, filePath: string) => {
 
     const base64Pattern = /^data:image\/png;base64,/;
     const base64Image = base64Data.replace(base64Pattern, '');
 
     const buffer = Buffer.from(base64Image, 'base64');
 
-    try {
-        fs.writeFileSync(filePath, buffer);
-
-        return true;
-    } catch (error) {
-        console.error('Error saving the image:', error);
+    const result = await supabase.storage.from('signatures').upload(filePath, buffer);
+    if (result.error) {
+        console.error(result.error);
+        return false;
     }
 
-    return false;
+    return true;
 };

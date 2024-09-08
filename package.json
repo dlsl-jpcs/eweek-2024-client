@@ -11,6 +11,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.3",
     "@types/cors": "^2.8.17",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
