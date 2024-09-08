@@ -49,7 +49,7 @@ const app = express()
 export const handler = app
 
 const corsOptions = {
-    origin: ['http://localhost:5173', "https://eweek-2024-server.onrender.com", "https://dlsl-jpcs.github.io/"], // allowed origin, this is our client
+    origin: ['http://localhost:5173', "https://eweek-2024-server.onrender.com", "https://dlsl-jpcs.github.io"], // allowed origin, this is our client
     methods: ['GET', 'POST', 'PUT', 'DELETE'], // allowed methods
     credentials: true, // allow credentials (cookies, etc.)
 };
