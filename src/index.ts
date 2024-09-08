@@ -583,18 +583,7 @@ const saveBase64Image = (base64Data: string, filePath: string): boolean => {
     const buffer = Buffer.from(base64Image, 'base64');
 
     try {
-
-
-        fs.writeFile(filePath, buffer, (err) => {
-            if (err) {
-                console.error('Error saving the image:', err);
-                return false;
-            } else {
-                console.log('Image saved successfully to', filePath);
-            }
-
-
-        });
+        fs.writeFileSync(filePath, buffer);
 
         return true;
     } catch (error) {
