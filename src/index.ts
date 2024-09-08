@@ -91,6 +91,62 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 
+app.post('/api/v1/player/updateTopScore', async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+
+    // check if user has our session token
+    var token = req.cookies['JPCS_SESSION_TOKEN'];
+    if (!token) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid request.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    const newScore = req.body.score;
+    if (!newScore) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid score.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    const email = await getPlayerEmailWithCode(token);
+    if (!email) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Player non-existent.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    if (!await updatePlayerScore(token, newScore)) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Player score not updated.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    let responseJson =
+    {
+        status: 'verified',
+        message: 'Player score verified.',
+    };
+
+    return res.send(JSON.stringify(responseJson));
+});
+
 
 /**
  * this route verifies code that the user has given us.
@@ -551,7 +607,8 @@ const insertPlayerData = async (code: string, student_id: number, username: stri
 
 // tyron, you decide. should we use token as main key or student id?
 // which is more secure in this case?
-const updatePlayerScore = (token: string) => {
+const updatePlayerScore = async (token: string, newScore: number) => {
+    return true;
 }
 
 export const isCodeValid = (code: string) => {
