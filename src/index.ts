@@ -605,12 +605,35 @@ const insertPlayerData = async (code: string, student_id: number, username: stri
     });
 }
 
-// tyron, you decide. should we use token as main key or student id?
-// which is more secure in this case?
-const updatePlayerScore = async (token: string, newScore: number) => {
-    return true;
+export const getPlayerTopScoreWithCode = async (code: string) => {
+    if (!isCodeValid(code)) return null;
+
+    const result = await supabase.from('Students').select('top_score').eq('code', code).single();
+    if (result.error) return 0;
+
+    return result.data.top_score;
 }
 
+const updatePlayerScore = async (code: string, score: number) => {
+
+    let currentTopScore = (await getPlayerTopScoreWithCode(code)) as number;
+
+    console.log(`Current Score: ${score}`);
+    console.log(`Top Score: ${currentTopScore}`)
+
+    if (score > currentTopScore) {
+
+        const response = await supabase.from('Students').update({ top_score: score }).eq('code', code);
+        if (response.error) {
+            console.error(response.error);
+            return false;
+        }
+
+        return true;
+    }
+
+    return false;
+}
 export const isCodeValid = (code: string) => {
     // let data = getUserData(code, null);
     // if (!data) return null;
