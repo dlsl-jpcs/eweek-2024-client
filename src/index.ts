@@ -103,7 +103,7 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
             message: 'Code is invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     let playerData = getPlayerWithCode(code) as PlayerData;
@@ -114,7 +114,7 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
             message: 'Code is invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     let responseJson =
@@ -128,7 +128,8 @@ app.post('/api/v1/player/verifyCode', (req: Request, res: Response) => {
 
     res.cookie('JPCS_SESSION_TOKEN', playerData.code, { httpOnly: true });
 
-    return res.end(JSON.stringify(responseJson));
+    res.send(JSON.stringify(responseJson));
+    return res.send(JSON.stringify(responseJson));
 });
 
 /**
@@ -150,7 +151,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     //         message: 'Invalid request.',
     //     };
 
-    //     return res.end(JSON.stringify(responseJson));
+    //     return res.send(JSON.stringify(responseJson));
     // }
 
     let studentId = req.body.student_id;
@@ -161,11 +162,11 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
             message: 'Student ID is required.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     if (getCodeForStudentId(studentId)) {
-        return res.end(JSON.stringify({
+        return res.send(JSON.stringify({
             status: 'user_already_exists',
             code: getCodeForStudentId(studentId),
         }));
@@ -193,7 +194,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
             code: getCodeForStudentId(studentId),
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     let course = info.department;
@@ -219,7 +220,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
         code: code
     };
 
-    return res.end(JSON.stringify(responseJson));
+    return res.send(JSON.stringify(responseJson));
 });
 
 /**
@@ -230,6 +231,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
  * in short, this basically checks if player is logged in.
  */
 app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
+    console.log('Checking token...');
 
     res.setHeader('Content-Type', 'application/json');
 
@@ -242,7 +244,7 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
             message: 'Token is invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     let playerData = getPlayerWithCode(token) as PlayerData;
@@ -253,7 +255,7 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
             message: 'Token is invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     let responseJson =
@@ -263,7 +265,7 @@ app.post('/api/v1/player/checkToken', (req: Request, res: Response) => {
         user_data: playerData
     };
 
-    return res.end(JSON.stringify(responseJson));
+    return res.send(JSON.stringify(responseJson));
 });
 
 app.listen(process.env.PORT || 3000, () => {
@@ -279,7 +281,7 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
             status: 'no_sign',
             message: 'Player has no signature.',
         };
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     try {
@@ -290,7 +292,7 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
                 status: 'no_sign',
                 message: 'Player has no signature.',
             };
-            return res.end(JSON.stringify(responseJson));
+            return res.send(JSON.stringify(responseJson));
         }
 
         const email = fullEmail.split('@')[0];
@@ -302,14 +304,14 @@ app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) =>
             status: 'signed',
             message: 'Player has signed.',
         };
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     } catch (error) {
 
         const responseJson = {
             status: 'no_sign',
             message: 'Player has no signature.',
         };
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 });
 
@@ -325,7 +327,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
             message: 'Player signature invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     const signatureBase64 = req.body.signatureBase64;
@@ -336,7 +338,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
             message: 'Player signature invalid.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     const email = getPlayerEmailWithCode(token) as string;
@@ -347,7 +349,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
             message: 'Player non-existent.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     const signatureFileName = `${email.split('@')[0]}.png`;
@@ -359,9 +361,12 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
             message: 'Player signature already exists.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
+    if (!fs.existsSync('signatures')) {
+        fs.mkdirSync('signatures');
+    }
 
     if (!saveBase64Image(signatureBase64, path.join('signatures', signatureFileName))) {
         let responseJson =
@@ -370,7 +375,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
             message: 'Server error. Failed to encode signature.',
         };
 
-        return res.end(JSON.stringify(responseJson));
+        return res.send(JSON.stringify(responseJson));
     }
 
     let responseJson =
@@ -379,7 +384,7 @@ app.post('/api/v1/player/submitSignature', (req: Request, res: Response) => {
         message: 'Player signature verified.',
     };
 
-    return res.end(JSON.stringify(responseJson));
+    return res.send(JSON.stringify(responseJson));
 });
 
 // bun's built-in sqlite database
@@ -578,6 +583,8 @@ const saveBase64Image = (base64Data: string, filePath: string): boolean => {
     const buffer = Buffer.from(base64Image, 'base64');
 
     try {
+
+
         fs.writeFile(filePath, buffer, (err) => {
             if (err) {
                 console.error('Error saving the image:', err);
