@@ -86,10 +86,29 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.get('/', (req: Request, res: Response) => {
+    
+    const auth = req.query.auth;
+    if (!auth) {
+        return res.status(403).send('Forbidden');
+    }
 
-    return res.sendFile(path.join(__dirname, 'public/server.html'));
+    if (auth != 'karstencutie69') {
+        return res.status(403).send('Forbidden');
+    }
+
+    const master = req.query.master;
+    if (!master) {
+        return res.status(403).send('Forbidden');
+    }
+
+    if (master != 'dianecutie420') {
+        return res.status(403).send('Forbidden');
+    }
+
+    return res.sendFile(path.join(__dirname, 'pages/server.html'));
 });
 
+app.use(express.static(__dirname + '/public'));
 
 app.post('/api/v1/player/updateTopScore', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
@@ -222,8 +241,6 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     //     return res.send(JSON.stringify(responseJson));
     // }
 
-
-
     let studentId = req.body.student_id;
     if (!studentId) {
         let responseJson =
@@ -234,16 +251,6 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
 
         return res.send(JSON.stringify(responseJson));
     }
-
-    const codeResult = await getCodeForStudentId(studentId);
-    if (codeResult) {
-        return res.send(JSON.stringify({
-            status: 'user_already_exists',
-            code: await getCodeForStudentId(studentId),
-        }));
-    }
-
-
 
     const info = await getStudentInfo(studentId).catch(() => null);
     if (!info) {
@@ -260,11 +267,15 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     let email = info.email_address;
 
     if (await isEmailExists(email)) {
+        let code = getPlayerCodeFromStudentID(studentId);
+  
         console.log('User already exists', email);
+
         let responseJson =
         {
             status: 'user_already_exists',
-            code: getCodeForStudentId(studentId),
+            code: await code,
+            name: email.split('@')[0].split('_')[0].charAt(0).toUpperCase() + email.split('@')[0].split('_')[0].slice(1),
         };
 
         return res.send(JSON.stringify(responseJson));
@@ -299,7 +310,8 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
     {
         status: 'verified',
         message: 'User registered.',
-        code: code
+        code: code,
+        name: fullName,
     };
 
     return res.send(JSON.stringify(responseJson));
@@ -349,6 +361,41 @@ app.post('/api/v1/player/checkToken', async (req: Request, res: Response) => {
         status: 'verified',
         message: 'Token is valid.',
         user_data: playerData
+    };
+
+    return res.send(JSON.stringify(responseJson));
+});
+
+app.post('/api/v1/player/getTopScores', async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+
+    let amount = req.body.amount;
+    if (!amount) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid request.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    let topScores = await getPlayersWithTopScores(amount);
+    if (!topScores) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Failed to get top scores.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    let responseJson =
+    {
+        status: 'verified',
+        message: 'Top scores retrieved.',
+        top_scores: topScores
     };
 
     return res.send(JSON.stringify(responseJson));
@@ -487,9 +534,7 @@ export const getCodeForStudentId = async (student_id: string) => {
     if (response.error) {
         return null;
     }
-
-
-
+    
     return response.data.code;
 }
 
@@ -614,6 +659,27 @@ export const getPlayerTopScoreWithCode = async (code: string) => {
     return result.data.top_score;
 }
 
+
+export const getPlayersWithTopScores = async (amount: number) => {
+    // Validate the amount to ensure it's a positive integer
+    if (amount <= 0) {
+        throw new Error("Amount must be greater than 0");
+    }
+
+    const result = await supabase
+        .from('Students')
+        .select('username, top_score')
+        .order('top_score', { ascending: false }) // Order by top_score in descending order
+        .range(0, amount - 1); // Fetch from index 0 to index (amount - 1)
+
+    if (result.error) {
+        console.error(result.error); // Log the error for debugging
+        return null;
+    }
+
+    return result.data as PlayerData[];
+};
+
 const updatePlayerScore = async (code: string, score: number) => {
 
     let currentTopScore = (await getPlayerTopScoreWithCode(code)) as number;
@@ -672,6 +738,15 @@ export const getPlayerWithCode = async (code: string) => {
     }
 
     return response.data as PlayerData;
+}
+
+export const getPlayerCodeFromStudentID = async (student_id: string) => {
+    const response = await supabase.from('Students').select('code').eq('student_id', student_id).single();
+    if (response.error) {
+        return null;
+    }
+
+    return response.data.code as string;
 }
 
 export const getPlayerEmailWithCode = async (code: string) => {

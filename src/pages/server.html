@@ -1,0 +1,458 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Fest 2024 Server</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js">
+    </script>
+
+   <script>
+    function register(e) {
+        if (event.key === "Enter") {
+            var student_id = e.value;
+            var name = 'UnkStudent';
+            var code = 'UnkCode';
+
+            const url = window.location.href + "/api/v1/player/register";
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/v1/player/register", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var json = JSON.parse(xhr.responseText);
+                    console.log(json);
+
+                    let status = '';
+
+                    if (json.status === "verified") {
+                        code = json.code;
+                        name = json.name;
+                        setState({
+                            state: "verified",
+                            code: code
+                        });
+
+                        status = "verified";
+                    } else if (json.status === "user_already_exists") {
+                        code = json.code;
+                        name = json.name;
+                        setState({
+                            state: "user_already_exists",
+                            code: code
+                        });
+
+                        status = "user_already_exists";
+                    } else if (json.status === "invalid") {
+                        setState({
+                            state: "invalid"
+                        });
+
+                        status = "invalid";
+                    }
+
+                    if (status === "verified") {
+                        console.log(`User ${student_id} registered`);
+                        notify(`Welcome ${name}! Your code is ${code}`);
+                    } else if (status === "user_already_exists") {
+                        console.log(`User ${student_id} already exists`);
+                        notify(`Welcome back ${name}! Your code is ${code}`);
+                    } else if (status === "invalid") {
+                        console.log(`User ${student_id} is invalid`);
+                        notify(`Student ${student_id} is Invalid`);
+                    }
+                }
+            };
+
+            xhr.send(JSON.stringify({
+                student_id: student_id
+            }));
+        }
+    }
+</script>
+
+    <script>
+        function notify(message){
+            (()=> {
+                let n = document.createElement("div");
+                let id = Math.random().toString(36).substr(2,10);
+                n.setAttribute("id", id);
+ 
+                n.innerText = message;
+                document.getElementById("notification-area").appendChild(n);
+                    setTimeout(()=> {
+                        var notifications = document.getElementById("notification-area").getElementsByTagName("div");
+                        for(let i=0;i<notifications.length;i++) {
+                            if(notifications[i].getAttribute("id") == id){
+                            notifications[i].remove();
+                            break;
+                            }
+                        }
+                    },8000);
+            })();
+        }
+
+        function setState(state) {
+            if (state.state === "verified" || state.state === "user_already_exists") {       
+                
+            }
+            else 
+            {
+               
+            }
+        }
+
+        setInterval(function () {
+            console.log("Updating top scores..");
+
+            var status = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/v1/player/getTopScores", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {  
+                var json = JSON.parse(xhr.responseText);
+
+                console.log(json);
+
+                document.getElementById("leaderboards_area").innerHTML = "";
+
+                for (var i = 0; i < json.top_scores.length; i++) {
+                    const player = json.top_scores[i];
+                    const div = document.createElement("div");
+                    
+                    if (i == 0)
+                    {
+                        div.innerHTML = `
+                            <h3>#${i + 1}</h3>
+                            <h1>${player.username}</h1>
+                            <h2>${player.top_score}pts.</h2>
+                        `;        
+                    }
+                    else if (i == 1)
+                    {
+                         div.innerHTML = `
+                            <h4>#${i + 1}</h4>
+                            <h1>${player.username}</h1>
+                            <h2>${player.top_score}pts.</h2>
+                        `;
+                    }
+                    else if (i == 2)
+                    {
+                         div.innerHTML = `
+                            <h5>#${i + 1}</h5>
+                            <h1>${player.username}</h1>
+                            <h2>${player.top_score}pts.</h2>
+                        `;
+                    }
+                    else 
+                    {
+                         div.innerHTML = `
+                            <h6>#${i + 1}</h6>
+                            <h1>${player.username}</h1>
+                            <h2>${player.top_score}pts.</h2>
+                        `;
+                    }
+
+                    document.getElementById("leaderboards_area").appendChild(div);
+                } 
+                
+                document.getElementById("leaderboards_area").innerHTML += "<h4>This updates every 5 seconds.</h4>";
+            };
+            xhr.send(JSON.stringify({
+                amount: 5
+            }));
+        }, 5000);      
+    </script>
+</head>
+<div id="bg">
+    <img id="island_back" src="island_back.png">
+</div>
+<div id="vignette"></div>
+<body>
+    <div id="header">
+        <img id="jpcs_logo" src="JPCSTextLogo.png">
+        <input id="student_id" placeholder="Student ID" onblur="this.focus()" autofocus onkeydown="register(this)"></input>
+    </div>
+    <div id="center">
+        <div id="game_info">
+            <img id="game_logo" src="PaddleFrenzyTitle.png">
+            <h1 id="lead_text">Leaderboards</h1>
+            <div id="leaderboards_area">
+                <h1 id="lead_load_text">Leaderboards is loading...</h1>
+            </div>
+        </div>
+    </div>
+    <div id="footer">
+        
+    </div>
+    <div id="notification_parent">
+        <div id="notification-area">
+        </div>
+    </div>
+</body>
+
+<style>
+    html {
+        overflow: hidden;
+    }
+    #notification_parent {
+        position: absolute;
+        width: 100vw;
+        height: 100vh;
+        top: 75px;
+        right: 23px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        z-index: 100;
+    }
+
+    #qr_code {
+        width: 100px;
+        height: 100px;
+        background-color: rgb(255, 255, 255);
+        margin: 20px;
+    }
+
+    #notification-area {
+        top:150px;
+        right:25px;
+        height:100vh;
+        display:flex;
+        justify-content:flex-end;
+        flex-direction: column-reverse;
+    }
+
+    @keyframes slide-in-fade-out {
+        0% { 
+            transform: translateX(200px); 
+            opacity: 0;
+        }
+        3% { 
+            transform: translateX(0); 
+            opacity: 1;
+        }
+        95% {  
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
+
+    #notification-area div {
+        margin: 3px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 0.8rem;
+        font-family: 'Century Gothic';
+        font-weight: 800;
+        padding: 15px;
+        background-color: rgb(44, 8, 8);
+        color: white;
+        animation: slide-in-fade-out 8s linear;
+    }
+
+    #vignette {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        box-shadow: 0 100px 500px rgb(15, 9, 48) inset;
+        opacity: 1.0;
+        transition: all 3.5s linear; 
+        z-index: -1;
+    }
+
+    #bg {
+        position: absolute;
+        margin: 0;
+        padding: 0;
+        height: 100vh; 
+        width: 100vw;
+        overflow: hidden;
+    }
+
+    #island_back {
+        position: absolute;
+        height: 100vh;
+        width: 100vw;
+        z-index: -1;
+        transform: translateY(300px);
+    }
+
+   body {
+        margin: 0;
+        padding: 0;
+        background-color: #8fb6ff;
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        height: 100vh; 
+    }
+
+    #header {
+        height: 85px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    #jpcs_logo {
+        height: 100px;
+    }
+
+    #student_id {
+        margin: 25px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 0.8rem;
+        font-family: 'Century Gothic';
+        font-weight: 800;
+        padding: 15px;
+        border-radius: 5px;
+        border-style: solid;
+        border-width: 4px;
+        border-color: rgb(44, 8, 8);
+        background-color: rgb(74, 16, 16);
+        color: white;
+    }
+
+    textarea:focus, input:focus{
+        outline: none;
+    }
+
+    #center {
+        flex: 1; 
+        display: flex;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    #game_info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: translateY(50px);
+    }
+
+    #game_logo {
+        height: 200px;
+    }
+
+    #lead_text {
+        text-align: center;
+        font-size: 1.5rem;
+        margin: 0;
+        margin-bottom: 10px;
+        margin-top: -10px;
+        filter: drop-shadow(3px 3px 0.1px rgba(0, 0, 0, 0.8));
+        color: white;
+    }
+
+    #lead_load_text {
+        font-size: 1.2rem;
+        margin: 0;
+        margin-top: 10px;
+        filter: drop-shadow(3px 3px 0.1px rgba(0, 0, 0, 0.8));
+        color: white;
+        margin-bottom: 10px;
+    }
+
+    #leaderboards_area {
+        width: 50vw;
+        background-color: brown;  
+        padding: 10px;
+        border-radius: 10px;
+        border-style: solid;
+        border-width: 8px;
+        border-color: rgb(74, 20, 20);
+        filter: drop-shadow(4px 4px 0.1px rgba(0, 0, 0, 0.8));
+    }
+
+    #leaderboards_area h4 {
+        font-size: 0.8rem;
+        margin: 0;
+        margin-top: 23px;
+        color: white;
+        margin-bottom: 10px;
+        text-align: center;
+        margin-left: -10px;
+    }
+
+    #leaderboards_area div {
+        display: flex;
+        justify-content: space-between;
+        background-color: rgb(74, 20, 20);
+        margin-left: 20px;
+        margin-right: 20px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        align-items: center;
+        padding-left: 10px;
+        padding-right: 10px;
+        border-radius: 8px;
+        filter: drop-shadow(4px 4px 0.1px rgba(0, 0, 0, 0.8));
+        color: white;
+    }
+
+    #leadeboards_area div {
+        
+    }
+
+    #leaderboards_area div h3 {
+        font-size: 1rem;
+        background-color: rgb(255, 193, 50);
+        padding: 10px;
+        border-radius: 5px;
+        margin: 5px;
+        color: black;
+    }
+
+    #leaderboards_area div h4 {
+        font-size: 1rem;
+        background-color: rgb(201, 201, 201);
+        padding: 10px;
+        border-radius: 5px;
+        margin: 5px;
+        color: black;
+    }
+
+    #leaderboards_area div h5 {
+        font-size: 1rem;
+        background-color: rgb(188, 143, 97);
+        padding: 10px;
+        border-radius: 5px;
+        margin: 5px;
+        color: black;
+    }
+
+    #leaderboards_area div h6 {
+        font-size: 1rem;
+        background-color: rgb(105, 44, 44);
+        padding: 10px;
+        border-radius: 5px;
+        margin: 5px;
+    }
+
+    #leaderboards_area div h1 {
+        font-size: 1.5rem;
+        margin: 0;
+        transform: translateX(25px);
+    }
+
+    #leaderboards_area div h2 {
+        font-size: 1rem;
+        margin: 0;
+        width: 100px;
+        text-align: right;
+    }
+
+    #footer {
+        height: 40px;
+    }
+</style>
+</html>
