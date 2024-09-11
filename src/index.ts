@@ -136,6 +136,20 @@ app.post('/api/v1/player/updateTopScore', async (req: Request, res: Response) =>
         return res.send(JSON.stringify(responseJson));
     }
 
+    const elapsedTime = req.body.elapsedTime;
+    if (!elapsedTime) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid elapsed time.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    const parsedElapsedTime = parseInt(elapsedTime);
+    const elapsedTimeInSeconds = Math.floor(parsedElapsedTime / 1000);
+
     const email = await getPlayerEmailWithCode(token);
     if (!email) {
         let responseJson =
@@ -147,7 +161,7 @@ app.post('/api/v1/player/updateTopScore', async (req: Request, res: Response) =>
         return res.send(JSON.stringify(responseJson));
     }
 
-    if (!await updatePlayerScore(token, newScore)) {
+    if (!await updatePlayerScore(token, newScore, elapsedTimeInSeconds)) {
         let responseJson =
         {
             status: 'invalid',
@@ -688,7 +702,7 @@ export const getPlayersWithTopScores = async (amount: number) => {
     return result.data as PlayerData[];
 };
 
-const updatePlayerScore = async (code: string, score: number) => {
+const updatePlayerScore = async (code: string, score: number, elapsedTimeInSeconds: number) => {
 
     let currentTopScore = (await getPlayerTopScoreWithCode(code)) as number;
 
@@ -697,7 +711,7 @@ const updatePlayerScore = async (code: string, score: number) => {
 
     if (score > currentTopScore) {
 
-        const response = await supabase.from('Students').update({ top_score: score }).eq('code', code);
+        const response = await supabase.from('Students').update({ top_score: score, elapsed_time: elapsedTimeInSeconds }).eq('code', code);
         if (response.error) {
             console.error(response.error);
             return false;
