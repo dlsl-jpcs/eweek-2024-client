@@ -342,6 +342,8 @@
 
     #game_logo {
         height: 200px;
+        padding: 0px;
+        margin: 0px;
     }
 
     #lead_text {
@@ -354,13 +356,19 @@
         color: white;
     }
 
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
     #lead_load_text {
         font-size: 1.2rem;
         margin: 0;
         margin-top: 10px;
         filter: drop-shadow(3px 3px 0.1px rgba(0, 0, 0, 0.8));
         color: white;
-        margin-bottom: 10px;
+        margin-bottom: 1rem;
     }
 
     #leaderboards_area {
@@ -373,6 +381,7 @@
         border-width: 8px;
         border-color: rgb(74, 20, 20);
         filter: drop-shadow(4px 4px 0.1px rgba(0, 0, 0, 0.8));
+        margin-bottom: 20rem;
     }
 
     #leaderboards_area h4 {
@@ -452,7 +461,7 @@
     }
 
     #footer {
-        height: 40px;
+        /* height: 40px; */
     }
 </style>
 
