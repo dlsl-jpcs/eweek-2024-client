@@ -86,7 +86,7 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.get('/', (req: Request, res: Response) => {
-    
+
     const auth = req.query.auth;
     if (!auth) {
         return res.status(403).send('Forbidden');
@@ -282,7 +282,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
 
     if (await isEmailExists(email)) {
         let code = getPlayerCodeFromStudentID(studentId);
-  
+
         console.log('User already exists', email);
 
         let responseJson =
@@ -424,11 +424,11 @@ app.listen(process.env.PORT || 3000, async () => {
 app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
 
-     const responseJson = {
-            status: 'signed',
-            message: 'Player has signed.',
-        };
-        return res.send(JSON.stringify(responseJson));
+    const responseJson = {
+        status: 'signed',
+        message: 'Player has signed.',
+    };
+    return res.send(JSON.stringify(responseJson));
 
     return;
 
@@ -556,7 +556,7 @@ export const getCodeForStudentId = async (student_id: string) => {
     if (response.error) {
         return null;
     }
-    
+
     return response.data.code;
 }
 
@@ -690,7 +690,7 @@ export const getPlayersWithTopScores = async (amount: number) => {
 
     const result = await supabase
         .from('Students')
-        .select('username, top_score')
+        .select('username, full_name, top_score')
         .order('top_score', { ascending: false }) // Order by top_score in descending order
         .range(0, amount - 1); // Fetch from index 0 to index (amount - 1)
 
@@ -698,8 +698,14 @@ export const getPlayersWithTopScores = async (amount: number) => {
         console.error(result.error); // Log the error for debugging
         return null;
     }
+    return result.data.map((player) => {
 
-    return result.data as PlayerData[];
+        return {
+            username: player.username,
+            full_name: player.full_name,
+            top_score: player.top_score
+        };
+    }, []);
 };
 
 const updatePlayerScore = async (code: string, score: number, elapsedTimeInSeconds: number) => {
