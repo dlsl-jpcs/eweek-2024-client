@@ -23,7 +23,7 @@ const invalidSignature = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAADI
 interface PlayerData {
     id: number;
     username: string;
-    name: string;
+    full_name: string;
     email: string;
     student_id: string;
     top_score: number;
@@ -676,7 +676,7 @@ export const getPlayersWithTopScores = async (amount: number) => {
 
     const result = await supabase
         .from('Students')
-        .select('username, top_score')
+        .select('*')
         .order('top_score', { ascending: false }) // Order by top_score in descending order
         .range(0, amount - 1); // Fetch from index 0 to index (amount - 1)
 
@@ -687,6 +687,33 @@ export const getPlayersWithTopScores = async (amount: number) => {
 
     return result.data as PlayerData[];
 };
+
+export const deletePlayerWithStudentID = async (student_id: string) => {
+    
+    const verifData = await getPlayerWithStudentID(student_id);
+    if (!verifData) {
+        console.log('Player with student_id ' + student_id + ' does not exist.');
+        return false;
+    }
+
+    console.log('Are you sure you want to delete: ' + verifData.full_name + ' ?');
+    console.log('Type "yes" to confirm.');
+    var input = prompt('Type "yes" to confirm.');
+
+    if (input != 'yes') {
+        console.log('Deletion cancelled.');
+        return false
+    }
+    
+    const response = await supabase.from('Students').delete().eq('student_id', student_id);
+    if (response.error) {
+        console.error(response.error);
+        return false;
+    }
+    
+    console.log('Deleted player with student_id: ' + student_id);
+    return true;
+}
 
 const updatePlayerScore = async (code: string, score: number) => {
 
@@ -742,9 +769,18 @@ export const isCodeValid = (code: string) => {
 export const getPlayerWithCode = async (code: string) => {
     const response = await supabase.from('Students').select('*').eq('code', code).single();
     if (response.error) {
-        return false;
+        return null;
     }
 
+    return response.data as PlayerData;
+}
+
+export const getPlayerWithStudentID = async (student_id: string) => {
+    const response = await supabase.from('Students').select('*').eq('student_id', student_id).single();
+    if (response.error) {
+        return null;
+    }
+    
     return response.data as PlayerData;
 }
 
@@ -782,3 +818,15 @@ const saveBase64Image = async (base64Data: string, filePath: string) => {
 
     return true;
 };
+
+console.log('Top Scores:');
+getPlayersWithTopScores(300).then((data) => {
+    if (!data)
+        return;
+
+    for (let i = 0; i < data.length; i++) {
+        console.log((i + 1).toString() + '. ' + data[i].full_name + ' - ' + data[i].top_score + ' - ' + data[i].email + ' - ' + data[i].student_id + ' - ' + data[i].code);
+    }
+});
+deletePlayerWithStudentID('2021314281');
+
