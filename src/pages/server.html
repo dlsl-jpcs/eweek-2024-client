@@ -9,6 +9,28 @@
     </script>
 
    <script>
+
+     function getTopScores() {
+            console.log("Updating top scores but more more..");
+
+            var status = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "https://eweek-api.tyronscott.me/api/v1/player/getTopScores", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function () {  
+                var json = JSON.parse(xhr.responseText);
+
+                console.log(json);
+            }
+
+            xhr.send(JSON.stringify({
+                amount: 25
+            }));
+        };     
+
+        getTopScores();
+
     function register(e) {
         if (event.key === "Enter") {
             var student_id = e.value;
