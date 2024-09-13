@@ -842,5 +842,3 @@ getPlayersWithTopScores(300).then((data) => {
         console.log((i + 1).toString() + '. ' + data[i].full_name + ' - ' + data[i].top_score + ' - ' + data[i].email + ' - ' + data[i].student_id + ' - ' + data[i].code);
     }
 });
-deletePlayerWithStudentID('2021314281');
-
