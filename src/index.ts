@@ -86,7 +86,7 @@ app.use((req: Request, res: Response, next) => {
 });
 
 app.get('/', (req: Request, res: Response) => {
-    
+
     const auth = req.query.auth;
     if (!auth) {
         return res.status(403).send('Forbidden');
@@ -136,6 +136,20 @@ app.post('/api/v1/player/updateTopScore', async (req: Request, res: Response) =>
         return res.send(JSON.stringify(responseJson));
     }
 
+    const elapsedTime = req.body.elapsedTime;
+    if (!elapsedTime) {
+        let responseJson =
+        {
+            status: 'invalid',
+            message: 'Invalid elapsed time.',
+        };
+
+        return res.send(JSON.stringify(responseJson));
+    }
+
+    const parsedElapsedTime = parseInt(elapsedTime);
+    const elapsedTimeInSeconds = Math.floor(parsedElapsedTime / 1000);
+
     const email = await getPlayerEmailWithCode(token);
     if (!email) {
         let responseJson =
@@ -147,7 +161,7 @@ app.post('/api/v1/player/updateTopScore', async (req: Request, res: Response) =>
         return res.send(JSON.stringify(responseJson));
     }
 
-    if (!await updatePlayerScore(token, newScore)) {
+    if (!await updatePlayerScore(token, newScore, elapsedTimeInSeconds)) {
         let responseJson =
         {
             status: 'invalid',
@@ -268,7 +282,7 @@ app.post('/api/v1/player/register', async (req: Request, res: Response) => {
 
     if (await isEmailExists(email)) {
         let code = getPlayerCodeFromStudentID(studentId);
-  
+
         console.log('User already exists', email);
 
         let responseJson =
@@ -410,11 +424,11 @@ app.listen(process.env.PORT || 3000, async () => {
 app.post('/api/v1/player/signatureCheck', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
 
-     const responseJson = {
-            status: 'signed',
-            message: 'Player has signed.',
-        };
-        return res.send(JSON.stringify(responseJson));
+    const responseJson = {
+        status: 'signed',
+        message: 'Player has signed.',
+    };
+    return res.send(JSON.stringify(responseJson));
 
     return;
 
@@ -542,7 +556,7 @@ export const getCodeForStudentId = async (student_id: string) => {
     if (response.error) {
         return null;
     }
-    
+
     return response.data.code;
 }
 
@@ -715,7 +729,7 @@ export const deletePlayerWithStudentID = async (student_id: string) => {
     return true;
 }
 
-const updatePlayerScore = async (code: string, score: number) => {
+const updatePlayerScore = async (code: string, score: number, elapsedTimeInSeconds: number) => {
 
     let currentTopScore = (await getPlayerTopScoreWithCode(code)) as number;
 
@@ -724,7 +738,7 @@ const updatePlayerScore = async (code: string, score: number) => {
 
     if (score > currentTopScore) {
 
-        const response = await supabase.from('Students').update({ top_score: score }).eq('code', code);
+        const response = await supabase.from('Students').update({ top_score: score, elapsed_time: elapsedTimeInSeconds }).eq('code', code);
         if (response.error) {
             console.error(response.error);
             return false;

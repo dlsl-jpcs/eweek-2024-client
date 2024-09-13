@@ -37,92 +37,91 @@
             var name = 'UnkStudent';
             var code = 'UnkCode';
 
-            const url = window.location.href + "/api/v1/player/register";
+                const url = window.location.href + "/api/v1/player/register";
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "/api/v1/player/register", true);
-            xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    var json = JSON.parse(xhr.responseText);
-                    console.log(json);
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/api/v1/player/register", true);
+                xhr.setRequestHeader("Content-Type", "application/json");
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var json = JSON.parse(xhr.responseText);
+                        console.log(json);
 
-                    let status = '';
+                        let status = '';
 
-                    if (json.status === "verified") {
-                        code = json.code;
-                        name = json.name;
-                        setState({
-                            state: "verified",
-                            code: code
-                        });
+                        if (json.status === "verified") {
+                            code = json.code;
+                            name = json.name;
+                            setState({
+                                state: "verified",
+                                code: code
+                            });
 
-                        status = "verified";
-                    } else if (json.status === "user_already_exists") {
-                        code = json.code;
-                        name = json.name;
-                        setState({
-                            state: "user_already_exists",
-                            code: code
-                        });
+                            status = "verified";
+                        } else if (json.status === "user_already_exists") {
+                            code = json.code;
+                            name = json.name;
+                            setState({
+                                state: "user_already_exists",
+                                code: code
+                            });
 
-                        status = "user_already_exists";
-                    } else if (json.status === "invalid") {
-                        setState({
-                            state: "invalid"
-                        });
+                            status = "user_already_exists";
+                        } else if (json.status === "invalid") {
+                            setState({
+                                state: "invalid"
+                            });
 
-                        status = "invalid";
+                            status = "invalid";
+                        }
+
+                        if (status === "verified") {
+                            console.log(`User ${student_id} registered`);
+                            notify(`Welcome ${name}! Your code is ${code}`);
+                        } else if (status === "user_already_exists") {
+                            console.log(`User ${student_id} already exists`);
+                            notify(`Welcome back ${name}! Your code is ${code}`);
+                        } else if (status === "invalid") {
+                            console.log(`User ${student_id} is invalid`);
+                            notify(`Student ${student_id} is Invalid`);
+                        }
                     }
+                };
 
-                    if (status === "verified") {
-                        console.log(`User ${student_id} registered`);
-                        notify(`Welcome ${name}! Your code is ${code}`);
-                    } else if (status === "user_already_exists") {
-                        console.log(`User ${student_id} already exists`);
-                        notify(`Welcome back ${name}! Your code is ${code}`);
-                    } else if (status === "invalid") {
-                        console.log(`User ${student_id} is invalid`);
-                        notify(`Student ${student_id} is Invalid`);
-                    }
-                }
-            };
-
-            xhr.send(JSON.stringify({
-                student_id: student_id
-            }));
+                xhr.send(JSON.stringify({
+                    student_id: student_id
+                }));
+            }
         }
-    }
-</script>
+    </script>
 
     <script>
-        function notify(message){
-            (()=> {
+        function notify(message) {
+            (() => {
                 let n = document.createElement("div");
-                let id = Math.random().toString(36).substr(2,10);
+                let id = Math.random().toString(36).substr(2, 10);
                 n.setAttribute("id", id);
- 
+
                 n.innerText = message;
                 document.getElementById("notification-area").appendChild(n);
-                    setTimeout(()=> {
-                        var notifications = document.getElementById("notification-area").getElementsByTagName("div");
-                        for(let i=0;i<notifications.length;i++) {
-                            if(notifications[i].getAttribute("id") == id){
+                setTimeout(() => {
+                    var notifications = document.getElementById("notification-area").getElementsByTagName("div");
+                    for (let i = 0; i < notifications.length; i++) {
+                        if (notifications[i].getAttribute("id") == id) {
                             notifications[i].remove();
                             break;
-                            }
                         }
-                    },15000);
+                    }
+                }, 15000);
             })();
         }
 
         function setState(state) {
-            if (state.state === "verified" || state.state === "user_already_exists") {       
-                
+            if (state.state === "verified" || state.state === "user_already_exists") {
+
             }
-            else 
-            {
-               
+            else {
+
             }
         }
 
@@ -134,7 +133,7 @@
             var xhr = new XMLHttpRequest();
             xhr.open("POST", "/api/v1/player/getTopScores", true);
             xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.onreadystatechange = function () {  
+            xhr.onreadystatechange = function () {
                 var json = JSON.parse(xhr.responseText);
 
                 console.log(json);
@@ -144,47 +143,43 @@
                 for (var i = 0; i < json.top_scores.length; i++) {
                     const player = json.top_scores[i];
                     const div = document.createElement("div");
-                    
-                    if (i == 0)
-                    {
+
+                    if (i == 0) {
                         div.innerHTML = `
                             <h3>#${i + 1}</h3>
-                            <h1>${player.username}</h1>
+                            <h1>${player.full_name}</h1>
                             <h2>${player.top_score}pts.</h2>
-                        `;        
+                        `;
                     }
-                    else if (i == 1)
-                    {
-                         div.innerHTML = `
+                    else if (i == 1) {
+                        div.innerHTML = `
                             <h4>#${i + 1}</h4>
-                            <h1>${player.username}</h1>
+                            <h1>${player.full_name}</h1>
                             <h2>${player.top_score}pts.</h2>
                         `;
                     }
-                    else if (i == 2)
-                    {
-                         div.innerHTML = `
+                    else if (i == 2) {
+                        div.innerHTML = `
                             <h5>#${i + 1}</h5>
-                            <h1>${player.username}</h1>
+                            <h1>${player.full_name}</h1>
                             <h2>${player.top_score}pts.</h2>
                         `;
                     }
-                    else 
-                    {
-                         div.innerHTML = `
+                    else {
+                        div.innerHTML = `
                             <h6>#${i + 1}</h6>
-                            <h1>${player.username}</h1>
+                            <h1>${player.full_name}</h1>
                             <h2>${player.top_score}pts.</h2>
                         `;
                     }
 
                     document.getElementById("leaderboards_area").appendChild(div);
-                } 
-                
+                }
+
                 document.getElementById("leaderboards_area").innerHTML += "<h4>This updates every 5 seconds.</h4>";
             };
             xhr.send(JSON.stringify({
-                amount: 5
+                amount: 10
             }));
         }, 5000);      
     </script>
@@ -193,10 +188,12 @@
     <img id="island_back" src="island_back.png">
 </div>
 <div id="vignette"></div>
+
 <body>
     <div id="header">
         <img id="jpcs_logo" src="JPCSTextLogo.png">
-        <input id="student_id" placeholder="Student ID" onblur="this.focus()" autofocus onkeydown="register(this)"></input>
+        <input id="student_id" placeholder="Student ID" onblur="this.focus()" autofocus
+            onkeydown="register(this)"></input>
     </div>
     <div id="center">
         <div id="game_info">
@@ -208,7 +205,7 @@
         </div>
     </div>
     <div id="footer">
-        
+
     </div>
     <div id="notification_parent">
         <div id="notification-area">
@@ -220,6 +217,7 @@
     html {
         overflow: hidden;
     }
+
     #notification_parent {
         position: absolute;
         width: 100vw;
@@ -240,26 +238,29 @@
     }
 
     #notification-area {
-        top:150px;
-        right:25px;
-        height:100vh;
-        display:flex;
-        justify-content:flex-end;
+        top: 150px;
+        right: 25px;
+        height: 100vh;
+        display: flex;
+        justify-content: flex-end;
         flex-direction: column-reverse;
     }
 
     @keyframes slide-in-fade-out {
-        0% { 
-            transform: translateX(200px); 
+        0% {
+            transform: translateX(200px);
             opacity: 0;
         }
-        3% { 
-            transform: translateX(0); 
+
+        3% {
+            transform: translateX(0);
             opacity: 1;
         }
-        95% {  
+
+        95% {
             opacity: 1;
         }
+
         100% {
             opacity: 0;
         }
@@ -286,7 +287,7 @@
         left: 0;
         box-shadow: 0 100px 500px rgb(15, 9, 48) inset;
         opacity: 1.0;
-        transition: all 3.5s linear; 
+        transition: all 3.5s linear;
         z-index: -1;
     }
 
@@ -294,7 +295,7 @@
         position: absolute;
         margin: 0;
         padding: 0;
-        height: 100vh; 
+        height: 100vh;
         width: 100vw;
         overflow: hidden;
     }
@@ -307,14 +308,14 @@
         transform: translateY(300px);
     }
 
-   body {
+    body {
         margin: 0;
         padding: 0;
         background-color: #8fb6ff;
         font-family: Arial, sans-serif;
         display: flex;
         flex-direction: column;
-        height: 100vh; 
+        height: 100vh;
     }
 
     #header {
@@ -343,12 +344,13 @@
         color: white;
     }
 
-    textarea:focus, input:focus{
+    textarea:focus,
+    input:focus {
         outline: none;
     }
 
     #center {
-        flex: 1; 
+        flex: 1;
         display: flex;
         justify-content: center;
         overflow: hidden;
@@ -358,11 +360,12 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        transform: translateY(50px);
     }
 
     #game_logo {
         height: 200px;
+        padding: 0px;
+        margin: 0px;
     }
 
     #lead_text {
@@ -375,24 +378,32 @@
         color: white;
     }
 
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
     #lead_load_text {
         font-size: 1.2rem;
         margin: 0;
         margin-top: 10px;
         filter: drop-shadow(3px 3px 0.1px rgba(0, 0, 0, 0.8));
         color: white;
-        margin-bottom: 10px;
+        margin-bottom: 1rem;
     }
 
     #leaderboards_area {
         width: 50vw;
-        background-color: brown;  
+        height: 100%;
+        background-color: brown;
         padding: 10px;
         border-radius: 10px;
         border-style: solid;
         border-width: 8px;
         border-color: rgb(74, 20, 20);
         filter: drop-shadow(4px 4px 0.1px rgba(0, 0, 0, 0.8));
+        margin-bottom: 20rem;
     }
 
     #leaderboards_area h4 {
@@ -421,9 +432,7 @@
         color: white;
     }
 
-    #leadeboards_area div {
-        
-    }
+    #leadeboards_area div {}
 
     #leaderboards_area div h3 {
         font-size: 1rem;
@@ -474,7 +483,8 @@
     }
 
     #footer {
-        height: 40px;
+        /* height: 40px; */
     }
 </style>
+
 </html>
